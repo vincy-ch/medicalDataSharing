@@ -1,0 +1,13 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Filename:      appendix.tex
+% Author:        Junwei Wang(wakemecn@gmail.com)
+% Last Modified: 2012-05-05 10:47
+% Description:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\titleformat{\chapter}[display]{\centering\normalfont\Large\bfseries}
+{附录~\Alph{chapter}}{11pt}{\Large}
+\renewcommand{\thechapter}{附录\Alph{chapter}.}
+\begin{appendices}
+\chapter{CPABE使用演示}
+\lstinputlisting[caption=DemoForCpabe.java]{DemoForCpabe.java}
+\end{appendices}

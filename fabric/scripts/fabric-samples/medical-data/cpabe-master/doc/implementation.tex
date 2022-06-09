@@ -1,0 +1,89 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Filename:      implementation.tex
+% Author:        Junwei Wang(wakemecn@gmail.com)
+% Last Modified: 2012-05-05 10:28
+% Description:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{实现}
+在本章中我们将要讨论实现第三章构造的一些实际问题，包括一些优化，我们所开发的工具包
+的描述以及性能的测量。
+\section{解密算法的效率改进}
+尽管没有必要通过新的技术减少setup、密钥生成和加密算法的群运算，但是这却可以大幅提升
+解密算法的性能。我们将在次介绍这些改进，并在4.3节中给出他们的作用。\par
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\vspace{5mm}
+\textbf{优化解密策略}\quad 第三章出的递归算法中，被对私钥属性匹配的叶子节点进行两次
+配对，对沿着节点到根的每个内部节点（不包括根节点）至多一次指数运算。递归部分的最后一
+步会有一次额外的配对。当然，每个阈值为$k$的内部节点，只保留他的$k$个孩子。考虑到在
+提前叶节点满足和选择可以满足整个访问树的自己的时间，我们可能避免估计DecryptNode，因为
+结果最终不被使用。\par
+更精确的讲，设$M$是访问树$\mathcal{T}$的节点的子集。我们定义函数$\mathbf{restrict}(
+\mathcal{T},M)$是从$\mathcal{T}$删除以下节点（同时保持阈值不变）形成的访问树。
+首先，我们删除所有不在$M$中的节点，下一步我们删除沿着孩子数小于阈值$k_x$的内部节点
+$x$一直到$\mathcal{T}$的根节点的所有节点。重复上述步骤直至没有节点可以删除，这时侯
+得到的就是$\mathbf{restrict}(\mathcal{T},M)$。因此给定访问树$\mathcal{T}$和满足访问树
+的属性集$\gamma$，自然的问题是选择集合$M$使得$\gamma$满足$\mathbf{restrict}(
+\mathcal{T},M)$并且$M$中的叶子数目是最少的（考虑到配对操作的代价是最昂贵的）。这可以通过对树的一次遍历的递归算法很容易的实现。算法DecryptNode在
+$\mathbf{restrict}(\mathcal{T},M)$上会取得与原来相同的结构。\par
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\vspace{5mm}
+\textbf{直接计算}\quad
+进一步性能改进，可以放弃DecryptNode函数并采取更直接的计算。直观的讲，我们想象展平
+树上对DecrypNode的递归调用，然后合并指数运算到每一个（用过的）叶子节点上。更精确的讲，
+令$\mathcal{T}$是根为$r$的访问树，$\gamma$是属性集合，$M \subseteq \mathcal{T}$使得
+$\gamma$满足$\mathbf{restrict}(\mathcal{T},M)$。同时假设$M$是最小的，即没有内部节点的
+孩子数比阈值大。设$L \subseteq M$是$M$中的叶子节点。那么对于每一个$l \in L$，
+$l$到$r$的路径表示为
+$$\rho(l)=(l,\mathbf{parent}(l),\mathbf{parent}(\mathbf{parent}(l)),...r) .$$
+同时，节点$x$的兄弟节点（包括$x$）表示为
+$$\mathbf{sibs}(x)=\{y\mid \mathbf{parent}(x)=\mathbf{parent}(y)\}\quad.$$
+在上述概念的基础上，我们可以继续直接计算Decrypt(CT,SK,$r$)的结果。首先，对每个
+$l\in L$计算
+\begin{align*}
+z_l = \prod_{x\in \rho(l)\atop x\neq r}\quad \text{其中$i=\mathbf{index}(x),
+S=\{\mathbf{y}|y\in\mathbf{sibs}(x)\}$ ,}
+\end{align*}
+然后计算
+$$\mathrm{DecryptNode(CT,SK,}r\mathrm{)}
+=\prod_{l\in L\atop i=\mathbf{att}(l)}
+\left(\frac{e(D_i,C_l)}{e(D_i',C_l')}\right)^{z_l}\quad .$$
+用这种方法，整个解密算法中指数运算的次数从$M-1$（例如，除去根节点以外的每个节点一次）
+减少为$|L|$，配对的次数为$2|L|$。\par
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\vspace{5mm}
+\textbf{合并配对}\quad
+合并具有相同属性的叶子可能进一步较少配对的数目。如果对于$L$中的某些$l_1,l_2$，有
+$\mathbf{att}(l_1)=\mathbf{att}(l_2)=i$
+，那么
+\begin{equation*}
+\begin{split}
+&\left(\frac{e(D_i,C_{l_1})}{e(D_i',C_{l_1}')}\right)^{z_{l_1}}
+\cdot\left(\frac{e(D_i,C_{l_2})}{e(D_i',C_{l_2}')}\right)^{z_{l_2}}\\
+=&\frac{e(D_i,C_{l_1}^{z_{l_1}})}{e(D_i',C_{l_1}^{z_{l_1}})}
+\cdot\frac{e(D_i,{C'}_{l_2}^{z_{l_2}})}{e(D_i',{C'}_{l_2}^{z_{l_2}})}\\
+=&\frac{e(D_i,C_{l_1}^{z_{l_1}}\cdot C_{l_2}^{z_{l_2}})}
+{e(D_i,{C'}_{l_1}^{z_{l_1}}\cdot {C'}_{l_2}^{z_{l_2}})}\quad .
+\end{split}
+\end{equation*}
+利用这个事实，我们合并$L$中所有互相不同的属性的配对，配对总数减少至$2m$，$m$是出现在
+$L$中不同的属性的个数。但是请注意，幂运算的次数增加了，且某些幂运算现在执行在
+$\mathbb{G}_0$上而不是$\mathbb{G}_1$上。具体来讲，如果$m'$是至少与其他叶子节点分享属性
+的叶子节点的数目，那么我们在$\mathbb{G}_0$和$\mathbb{G}_1$上分别执行$2m'$次，$|L|-m'$
+次指数运算，而不是分别为$0$次，$|L|$次。如果椭圆曲线群$\mathbb{G}_0$上的幂运算比与其
+阶相同的有限域$\mathbb{G}_1$慢，那么这个技术将潜在的增加解密的时间。我们将在4.3节讨论
+这个权衡。
+\section{\texttt{cpabe}使用范例}
+我们给出了第三章构造的实现，称之为\texttt{cpabe}包\cite{cpabe}，并在GPL协议\cite{gpl}
+下发布，实现使用了jPBC库\cite{jPBC}\footnote{jPBC遵循LGPL协议发布}。\texttt{cpabe}包
+的可以点用CPABE类的如下成员函数的方式直接被其它大型的系统调用。
+\lstinputlisting[caption=Setup]{Setup.java}
+\lstinputlisting[caption=Keygen]{Keygen.java}
+\lstinputlisting[caption=Enc]{Enc.java}
+\lstinputlisting[caption=Dec]{Dec.java}
+附录A包含一个具体的调用实例。
+
+
+
+
+
+

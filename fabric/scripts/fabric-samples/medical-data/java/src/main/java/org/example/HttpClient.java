@@ -10,6 +10,7 @@ import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -175,7 +176,7 @@ public class HttpClient {
      *               是否使用代理模式
      * @return 所代表远程资源的响应结果
      */
-    public static String sendPost(String url, String param,boolean isproxy) {
+    public static String sendPost(String url, String param, boolean isproxy) {
         OutputStreamWriter out = null;
         BufferedReader in = null;
         String result = "";
@@ -208,10 +209,11 @@ public class HttpClient {
             conn.connect();
 
             // 获取URLConnection对象对应的输出流
-            out = new OutputStreamWriter(conn.getOutputStream(), "UTF-8");
+            out = new OutputStreamWriter(conn.getOutputStream(), StandardCharsets.UTF_8);
             // 发送请求参数
             out.write(param);
             // flush输出流的缓冲
+            out.write("\r\n");
             out.flush();
             // 定义BufferedReader输入流来读取URL的响应
             in = new BufferedReader(
@@ -247,29 +249,129 @@ public class HttpClient {
         String mediumTextFile = dir + "/medium.png";
         String highEncFile = dir + "/high_enc.xlsx";
         String mediumEncFile = dir + "/medium_enc.png";
+        String highDecFile = dir + "/high_dec.xlsx";
+        String mediumDecFile = dir + "/medium_dec.png";
+        String encKey = "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";
+        String priKey = "AAAAgGde8iH8i2RNqPj+RNWPkuFVpNfMGMPo0IQeSAl/G2FDPQX5pl7bTzPTvR3QYgYaKWM/PlqE8CtA+PPOoBhwaFWFfdT3wGpoi64n96mR/7+rHMY/xC4Ha9leb3FeEHEQxCn+RdBjYZSJsangKhpwzoguhPNZA8hRgkSQ6xZoVp3oAAAAAgAAAApIb3NwaXRhbDoxAAAAgGrWCD5mb69xrI53kNC7FoaaFgqhSwURtsgGR/6Ww8zB7ZZw0J9+bN5CxmEUqicYDPMwEYXahBxM4D+6Cypz/3N3cg6Tb7hly93++syTBi3PMD+yMRL3uPew5jcR1/rdwOk6paLCiMUAELSueLZSiwnKGK3YCEh484ZcGRQ2CpYeAAAAgITVRdMnng2Byld8LVNzvTyHkFRF/HbdMCCSmYecMmnNT9Ph7SmWnWNcfNolFoUKSqdOEoSV+RCQFcZo8U1n2vwm/zT30hUoDmjWMR/aEJ+urp7qe6raDYUKzeGXdh3btl519IryziP4bOASv0inWVywXGkZG/BSiGNJeNv/l5Y/AAAAA0E6MQAAAIB/y00h3TvAUSVyb7AS+ezXRmHJ7Yejz83fOcIgnTEunLRfSIqq6fDpyUkuNceX2jLDgpE1ljBA3Zdc5vx9LhBLDlC8AvM29C//fLi2nk+nmrZunlZpKCRxjt82lJ5DleN4u0dM3330amretX9qBaxNvzng7kze43smi+ptrpLemAAAAICAe+TkGZli6UJjVrZ3EAyhMqm/sVYf+1WKV99os++ucGrB19WOygxfcIXFk5bglbOXLUqzfas04K4V02TL7LrRojj517ytAsUFJAmLAz2JeONFjt7duE4vWv/pbdRQOTNafPiIJpfN+fqsgNTyByub1RSrSCbm9PwyQtnc+iDQig==";
 
-        String url = "http://localhost:8888";
+        String url = "http://39.96.201.238:8888";
+//        String url = "http://localhost:8888";
         String enrollAdminParams = "method=enrollAdmin";
         String registerUserParams = "method=registerUser";
+        // PLATFORM:北京大学第三医院 北京协和医院 友谊医院 朝阳医院 天坛医院
+        // INDIVIDUAL: user
+        String createUserParams =
+                "method=createUser" +
+                        "&createUserName=北京大学第三医院" +
+                        "&userType=PLATFORM";
+        String encMedicalDataParams =
+                "method=encMedicalData" +
+                        "&highTextFile=" + highTextFile +
+                        "&mediumTextFile=" + mediumTextFile +
+                        "&highEncFile=" +highEncFile +
+                        "&mediumEncFile=" + mediumEncFile +
+                        "&policy=Research-Institute:1 Insurance-Company:1 Hospital:1 1of3 A:1 2of2";
+
+        String priKeyGenParams =
+                "method=priKeyGen" +
+                        "&attr=Hospital:1 A:1";
+
+        String queryAllMedicalDataParams =
+                "method=queryAllMedicalData";
+
+
+        String querySharingRecordByUserIdParams =
+                "method=querySharingRecordByUserId" +
+                        "&userId=001" +
+                        "&isRequester=false";
+
+        System.out.println(enrollAdminParams);
+        System.out.println(registerUserParams);
+
+        String sr;
+//        sr = HttpClient.sendPost(url,enrollAdminParams,false);
+//        System.out.println(sr);
+
+        sr = HttpClient.sendPost(url,registerUserParams,false);
+        System.out.println(sr);
+
+//        encKey = HttpClient.sendPost(url,encMedicalDataParams,false);
+//        System.out.println(encKey);
+
+        String individualId = "0";
+        for(int i = 1; i < 30; i++) {
+            individualId += " ";
+            individualId += String.valueOf(i);
+        }
+
+        System.out.println(createUserParams);
+        sr = HttpClient.sendPost(url,createUserParams,false);
+        System.out.println(sr);
+
         String createMedicalDataParams =
                 "method=createMedicalData" +
-                "&userName=user1" +
-                "&highTextFile=" + highTextFile +
-                "&mediumTextFile=" + mediumTextFile +
-                "&highEncFile=" +highEncFile +
-                "&mediumEncFile=" + mediumEncFile +
-                "&platformId=0" +
-                "&individualId=0" +
-                "&describe=在我院呼吸科就诊的COPD患者（年龄>=18），人数216人，数据包括症状描述，用药情况，住院费用等" +
-                "&policy=sn:student2 cn:student2 uid:student2 3of3 an:student2 1of2";
+                        "&encKey=" + encKey +
+                        "&highEncFile=" +highEncFile +
+                        "&mediumEncFile=" + mediumEncFile +
+                        "&platformId=100" +
+                        "&individualId=" + individualId +
+                        "&describe=在我院呼吸科就诊的COPD患者（年龄>=18），人数30人，数据包括症状描述，用药情况，住院费用等" +
+                        "&policy=Research-Institute Insurance-Company Hospital 1of3 A 2of2" +
+                        "&attNum=5"+
+                        "&num=30";
+//        sr = HttpClient.sendPost(url,createMedicalDataParams,false);
+//        System.out.println(sr);
 
-        String queryMedicalDataByIdParams =
-                "method=queryMedicalDataById" +
-                "&userName=user1" +
-                "&id=01";
 
-        String sr = HttpClient.sendPost(url,enrollAdminParams,false);
-        System.out.println(sr);
+//        sr = HttpClient.sendPost(url,queryAllMedicalDataParams,false);
+//        System.out.println(sr);
+
+
+//        String queryMedicalDataByIdParams =
+//                "method=queryMedicalDataById" +
+//                        "&dataId=001";
+//        System.out.println(queryMedicalDataByIdParams);
+//        sr = HttpClient.sendPost(url,queryMedicalDataByIdParams,false);
+//        System.out.println(sr);
+
+//        sr = HttpClient.sendPost(url,queryAllMedicalDataParams,false);
+//        System.out.println(sr);
+//
+
+
+
+        String requestMedicalDataByIdParams =
+                "method=requestMedicalDataById" +
+                        "&dataId=000" +
+                        "&userId=001";
+//        String sr = HttpClient.sendPost(url,requestMedicalDataByIdParams,false);
+//        System.out.println(sr);
+
+//        priKey = HttpClient.sendPost(url,priKeyGenParams,false);
+//        System.out.println(priKey);
+
+        String decMedicalDataParams =
+                "method=decMedicalData" +
+                        "&highEncFile=" + highEncFile +
+                        "&mediumEncFile=" + mediumEncFile +
+                        "&highDecFile=" + highDecFile +
+                        "&mediumDecFile=" + mediumDecFile +
+                        "&priKey=" + priKey +
+                        "&encKey=" + encKey;
+//        System.out.println(decMedicalDataParams);
+//        sr = HttpClient.sendPost(url,decMedicalDataParams,false);
+//        System.out.println(sr);
+
+        System.out.println(querySharingRecordByUserIdParams);
+//        sr = HttpClient.sendPost(url,querySharingRecordByUserIdParams,false);
+//        System.out.println(sr);
+
+        String queryPointByIdParams =
+                "method=queryPointById" +
+                        "&userId=001";
+//        System.out.println(queryPointByIdParams);
+//        sr = HttpClient.sendPost(url,queryPointByIdParams,false);
+//        System.out.println(sr);
     }
 
 }

@@ -118,10 +118,12 @@ public class SerializeUtils {
 	
 		serializeElement(arrlist, msk.beta);
 		serializeElement(arrlist, msk.g_alpha);
+		serializeElement(arrlist, msk.alpha);
 
 		System.out.printf("beta: %s\n", msk.beta);
 		System.out.printf("g_alpha: %s\n", msk.g_alpha);
-	
+		System.out.printf("alpha: %s\n", msk.alpha);
+
 		return Byte_arr2byte_arr(arrlist);
 	}
 
@@ -132,10 +134,12 @@ public class SerializeUtils {
 	
 		msk.beta = pub.p.getZr().newElement();
 		msk.g_alpha = pub.p.getG2().newElement();
-	
+		msk.alpha = pub.p.getZr().newElement();
+
 		offset = unserializeElement(b, offset, msk.beta);
 		offset = unserializeElement(b, offset, msk.g_alpha);
-	
+		offset = unserializeElement(b, offset, msk.alpha);
+
 		return msk;
 	}
 

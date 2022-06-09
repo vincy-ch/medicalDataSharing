@@ -1,19 +1,12 @@
 package co.junwei.cpabe;
+import co.junwei.bswabe.*;
 import co.junwei.cpabe.policy.LangPolicy;
 import it.unisa.dia.gas.jpbc.Element;
+import it.unisa.dia.gas.jpbc.Pairing;
 
-import java.io.*;
+import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
-
-import co.junwei.bswabe.Bswabe;
-import co.junwei.bswabe.BswabeCph;
-import co.junwei.bswabe.BswabeCphKey;
-import co.junwei.bswabe.BswabeElementBoolean;
-import co.junwei.bswabe.BswabeMsk;
-import co.junwei.bswabe.BswabePrv;
-import co.junwei.bswabe.BswabePub;
-import co.junwei.bswabe.SerializeUtils;
 
 public class Cpabe {
 
@@ -52,12 +45,22 @@ public class Cpabe {
 		msk = SerializeUtils.unserializeBswabeMsk(pub, msk_byte);
 
 		String[] attr_arr = LangPolicy.parseAttribute(attr_str);
-		BswabePrv prv = Bswabe.keygen(pub, msk, attr_arr);
+		Pairing pairing = pub.p;
+		Element x, x_inv;
+		x = pairing.getZr().newElement();
+		x.setToRandom();
+		x_inv = x.duplicate();
+		x_inv.invert();
+		Element g_x = pub.gp.duplicate();
+		g_x = g_x.powZn(x);
 
-		/* store BswabePrv into prvfile */
+		BswabePrv prv = Bswabe.keygen1(pub, msk, attr_arr, g_x);
+		prv.d = Bswabe.keygen2(prv.d, pub, msk).duplicate();
+		prv.d = prv.d.powZn(x_inv);
+
+		/* return BswabePrv into prvfile */
 		prv_byte = SerializeUtils.serializeBswabePrv(prv);
 		return Base64.getEncoder().encodeToString(prv_byte);
-//		Common.spitFile(prvfile, prv_byte);
 	}
 
 	public void enc(String pubfile, String policy, String inputfile,
@@ -146,18 +149,18 @@ public class Cpabe {
 
 		keyCph = Bswabe.enc2(pub, policy);
 		cph = keyCph.cph;
-		rootKey = keyCph.rootKey;
-		childKey = keyCph.childKey;
+		rootKey = keyCph.rootKey;    // 根节点的AES加密密钥
+		childKey = keyCph.childKey;  // 根节点左孩子节点的AES加密密钥
 
 		if (cph == null) {
-			System.out.println("Error happed in enc");
+			System.out.println("Error happened in enc");
 			System.exit(0);
 		}
 
 		cphBuf = SerializeUtils.bswabeCphSerialize(cph);
 
 		if (policy.endsWith("2of2")) {
-			// high文件是用root加密 medium文件是用child加密
+			// high文件是用root加密 medium文件是用childKey加密
 			/* read file to encrypted */
 			plt = Common.suckFile(highInputfile);
 			aesBuf = AESCoder.encrypt(rootKey.toBytes(), plt);
@@ -167,7 +170,7 @@ public class Cpabe {
 			aesBuf = AESCoder.encrypt(childKey.toBytes(), plt);
 			Common.writeCpabeFile(mediumEncfile, cphBuf, aesBuf);
 		} else {
-			// high文件是用child加密 medium文件是用root加密
+			// high文件是用childKey加密 medium文件是用rootKey加密
 			/* read file to encrypted */
 			plt = Common.suckFile(highInputfile);
 			aesBuf = AESCoder.encrypt(childKey.toBytes(), plt);

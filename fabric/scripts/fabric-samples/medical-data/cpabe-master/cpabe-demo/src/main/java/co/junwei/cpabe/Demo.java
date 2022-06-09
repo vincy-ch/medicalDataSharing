@@ -8,15 +8,15 @@ import java.util.Date;
 public class Demo {
 	final static boolean DEBUG = true;
 
-	static String dir = "demo/cpabe";
+	static String dir = "medical-data/cpabe-master/demo/cpabe";
 
     static String pubfile = dir + "/pub_key";
 	static String mskfile = dir + "/master_key";
 	static String prvfile = dir + "/prv_key_user1";
 	static String prvfile2 = dir + "/prv_key_user2";
 
-	static String highInputfile = dir + "/70M.txt";
-	static String mediumInputfile = dir + "/70M.txt";
+	static String highInputfile = dir + "/high_input.txt";
+	static String mediumInputfile = dir + "/medium_input.txt";
 	static String highEncfile = dir + "/high_enc";
 	static String mediumEncfile = dir + "/medium_enc";
 	static String highDecfile_user1 = dir + "/high_dec_user1.txt";
@@ -413,10 +413,10 @@ public class Demo {
 			+ "sn:student2 cn:student2 uid:student2 userPassword:student2 "
 			+ "ou:idp o:computer mail:student2@sdu.edu.cn title:student";
 
-	static String student_policy = "uid:2 cn:2 cn:3 cn:4 4of4 ti:1 2of2";
+	static String student_policy = "uid:student2 cn:student2 cn:student3 3of3 title:student 2of2";
 
 	public static void main(String[] args) throws Exception {
-		String student_attr = "uid:2 cn:2 ti:1 cn:3 cn:4"; //medium
+		String student_attr = "cn:student2 uid:student2 title:student cn:student3"; //medium
 		// attr = attr_kevin;
 		// attr = attr_sara;
 		// policy = policy_kevin_or_sara;
@@ -443,6 +443,7 @@ public class Demo {
 //		println("//end to enc");
 
 //		println("//start to dec");
+		System.out.println(priKey.length() + "!!!!");
 		System.out.println(test.dec2(pubfile, priKey, highEncfile, mediumEncfile, highDecfile_user1, mediumDecfile_user1, encKey));
 		long end2 = (System.currentTimeMillis());
 		System.out.println(end1-start);

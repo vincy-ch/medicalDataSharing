@@ -54,6 +54,7 @@ public class Bswabe {
 
 		msk.g_alpha = pub.gp.duplicate();
 		msk.g_alpha.powZn(alpha);
+		msk.alpha = alpha.duplicate();
 
 		beta_inv = msk.beta.duplicate();
 		beta_inv.invert();
@@ -84,6 +85,7 @@ public class Bswabe {
 
 		/* compute */
 		r.setToRandom();
+
 		g_r = pub.gp.duplicate();
 		g_r.powZn(r);
 
@@ -120,7 +122,92 @@ public class Bswabe {
 			prv.comps.add(comp);
 		}
 
+
+
 		return prv;
+	}
+
+	public static BswabePrv keygen1(BswabePub pub, BswabeMsk msk, String[] attrs,Element g_x)
+			throws NoSuchAlgorithmException {
+		BswabePrv prv = new BswabePrv();
+		Element g_r, r, beta_inv;
+		Pairing pairing;
+
+		/* initialize */
+		pairing = pub.p;
+		prv.d = pairing.getG2().newElement();
+		g_r = pairing.getG2().newElement();
+		r = pairing.getZr().newElement();
+		beta_inv = pairing.getZr().newElement();
+
+		/* compute */
+		r.setToRandom();
+		Element alpha = msk.alpha.duplicate();
+		Element g_x_alph = g_x.duplicate();
+		g_x_alph = g_x_alph.powZn(alpha);
+
+		Element g_x_r = g_x.duplicate();
+		g_x_r = g_x_r.powZn(r);
+
+		prv.d = g_x_alph.duplicate();
+		prv.d = prv.d.mul(g_x_r);
+
+//		g_r = pub.gp.duplicate();
+//		g_r.powZn(r);
+//
+//		prv.d = msk.g_alpha.duplicate();
+//		prv.d.mul(g_r);
+//		beta_inv = msk.beta.duplicate();
+//		beta_inv.invert();
+//		prv.d.powZn(beta_inv);
+
+		g_r = pub.gp.duplicate();
+		g_r.powZn(r);
+		int i, len = attrs.length;
+		prv.comps = new ArrayList<BswabePrvComp>();
+		for (i = 0; i < len; i++) {
+			BswabePrvComp comp = new BswabePrvComp();
+			Element h_rp;
+			Element rp;
+
+			comp.attr = attrs[i];
+
+			comp.d = pairing.getG2().newElement();
+			comp.dp = pairing.getG1().newElement();
+			h_rp = pairing.getG2().newElement();
+			rp = pairing.getZr().newElement();
+
+			elementFromString(h_rp, comp.attr);
+			rp.setToRandom();
+
+			h_rp.powZn(rp);
+
+			comp.d = g_r.duplicate();
+			comp.d.mul(h_rp);
+			comp.dp = pub.g.duplicate();
+			comp.dp.powZn(rp);
+
+			prv.comps.add(comp);
+		}
+
+
+
+		return prv;
+	}
+
+	public static Element keygen2(Element prv_d, BswabePub pub, BswabeMsk msk)
+			throws NoSuchAlgorithmException {
+		Element beta_inv;
+		Pairing pairing;
+		pairing = pub.p;
+		beta_inv = pairing.getZr().newElement();
+
+		beta_inv = msk.beta.duplicate();
+		beta_inv.invert();
+		Element temp = prv_d.duplicate();
+		temp = temp.powZn(beta_inv);
+
+		return temp;
 	}
 
     /*
@@ -267,8 +354,7 @@ public class Bswabe {
 		BswabeCph cph = new BswabeCph();
 		Element ss, m, s, mm;
 
-		/* initialize */
-
+		/* 各变量初始化 */
 		Pairing pairing = pub.p;
 		s = pairing.getZr().newElement();
 		ss = pairing.getZr().newElement();
@@ -280,20 +366,21 @@ public class Bswabe {
 		cph.cc = pairing.getG1().newElement();
 		cph.p = parsePolicyPostfix(policy);
 
-		/* compute */
+		/* 随机生成用于AES加密的对称密钥m和mm，s是访问树根节点的秘密值 */
 		m.setToRandom();
 		mm.setToRandom();
 		s.setToRandom();
 
+		/* compute rootKey info*/
 		cph.cs = pub.g_hat_alpha.duplicate();
 		cph.cs.powZn(s); /* num_exps++; */
 		cph.cs.mul(m); /* num_muls++; */
-
 		cph.c = pub.h.duplicate();
 		cph.c.powZn(s); /* num_exps++; */
 
 		ss = fillPolicy2(cph.p, pub, s);
 
+		/* compute rootKey info*/
 		cph.ccss = pub.g_hat_alpha.duplicate();
 		cph.ccss.powZn(ss);
 		cph.ccss.mul(mm);

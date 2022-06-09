@@ -8,6 +8,6 @@ public class BswabePrv {
 	/*
 	 * A private key
 	 */
-	Element d; /* G_2 */
+	public Element d; /* G_2 */
 	ArrayList<BswabePrvComp> comps; /* BswabePrvComp */
 }
