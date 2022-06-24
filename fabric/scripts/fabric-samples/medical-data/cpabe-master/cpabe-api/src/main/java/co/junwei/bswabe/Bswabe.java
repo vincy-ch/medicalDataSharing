@@ -10,7 +10,6 @@ import java.io.ByteArrayInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 
 public class Bswabe {
@@ -70,63 +69,31 @@ public class Bswabe {
 	/*
 	 * Generate a private key with the given set of attributes.
 	 */
-	public static BswabePrv keygen(BswabePub pub, BswabeMsk msk, String[] attrs)
-			throws NoSuchAlgorithmException {
-		BswabePrv prv = new BswabePrv();
-		Element g_r, r, beta_inv;
-		Pairing pairing;
+	public static BswabePrv keygen(BswabePub pub, BswabeMsk msk, String[] attr_arr) throws NoSuchAlgorithmException {
+		Pairing pairing = pub.p;
+		Element x, x_inv;
+		// 选择随机数x
+		x = pairing.getZr().newElement();
+		x.setToRandom();
+		Element g_x = pub.gp.duplicate();
+		g_x = g_x.powZn(x);
 
-		/* initialize */
-		pairing = pub.p;
-		prv.d = pairing.getG2().newElement();
-		g_r = pairing.getG2().newElement();
-		r = pairing.getZr().newElement();
-		beta_inv = pairing.getZr().newElement();
+		// 两阶段生成伪密钥
+		BswabePrv prv = Bswabe.keygen1(pub, msk, attr_arr, g_x);
+		prv.d = Bswabe.keygen2(prv.d, pub, msk).duplicate();
 
-		/* compute */
-		r.setToRandom();
-
-		g_r = pub.gp.duplicate();
-		g_r.powZn(r);
-
-		prv.d = msk.g_alpha.duplicate();
-		prv.d.mul(g_r);
-		beta_inv = msk.beta.duplicate();
-		beta_inv.invert();
-		prv.d.powZn(beta_inv);
-
-		int i, len = attrs.length;
-		prv.comps = new ArrayList<BswabePrvComp>();
-		for (i = 0; i < len; i++) {
-			BswabePrvComp comp = new BswabePrvComp();
-			Element h_rp;
-			Element rp;
-
-			comp.attr = attrs[i];
-
-			comp.d = pairing.getG2().newElement();
-			comp.dp = pairing.getG1().newElement();
-			h_rp = pairing.getG2().newElement();
-			rp = pairing.getZr().newElement();
-
-			elementFromString(h_rp, comp.attr);
-			rp.setToRandom();
-
-			h_rp.powZn(rp);
-
-			comp.d = g_r.duplicate();
-			comp.d.mul(h_rp);
-			comp.dp = pub.g.duplicate();
-			comp.dp.powZn(rp);
-
-			prv.comps.add(comp);
-		}
-
-
+		// 由伪密钥恢复为真实密钥
+		x_inv = x.duplicate();
+		x_inv.invert();
+		prv.d = prv.d.powZn(x_inv);
 
 		return prv;
 	}
 
+
+	/*
+	 * Two-stage key generation: the first stage
+	 */
 	public static BswabePrv keygen1(BswabePub pub, BswabeMsk msk, String[] attrs,Element g_x)
 			throws NoSuchAlgorithmException {
 		BswabePrv prv = new BswabePrv();
@@ -152,19 +119,11 @@ public class Bswabe {
 		prv.d = g_x_alph.duplicate();
 		prv.d = prv.d.mul(g_x_r);
 
-//		g_r = pub.gp.duplicate();
-//		g_r.powZn(r);
-//
-//		prv.d = msk.g_alpha.duplicate();
-//		prv.d.mul(g_r);
-//		beta_inv = msk.beta.duplicate();
-//		beta_inv.invert();
-//		prv.d.powZn(beta_inv);
 
 		g_r = pub.gp.duplicate();
 		g_r.powZn(r);
 		int i, len = attrs.length;
-		prv.comps = new ArrayList<BswabePrvComp>();
+		prv.comps = new ArrayList<>();
 		for (i = 0; i < len; i++) {
 			BswabePrvComp comp = new BswabePrvComp();
 			Element h_rp;
@@ -190,13 +149,13 @@ public class Bswabe {
 			prv.comps.add(comp);
 		}
 
-
-
 		return prv;
 	}
 
-	public static Element keygen2(Element prv_d, BswabePub pub, BswabeMsk msk)
-			throws NoSuchAlgorithmException {
+	/*
+	 * Two-stage key generation: the second stage
+	 */
+	public static Element keygen2(Element prv_d, BswabePub pub, BswabeMsk msk) {
 		Element beta_inv;
 		Pairing pairing;
 		pairing = pub.p;
@@ -259,7 +218,7 @@ public class Bswabe {
                     }
                 }
 
-                if (comp_src_init == false) {
+                if (!comp_src_init) {
                     throw new IllegalArgumentException("comp_src_init == false");
                 }
 
@@ -316,42 +275,6 @@ public class Bswabe {
 			throws Exception {
 		BswabeCphKey keyCph = new BswabeCphKey();
 		BswabeCph cph = new BswabeCph();
-		Element s, m;
-
-		/* initialize */
-
-		Pairing pairing = pub.p;
-		s = pairing.getZr().newElement();
-		m = pairing.getGT().newElement();
-		cph.cs = pairing.getGT().newElement();
-		cph.ccss = pairing.getGT().newElement();
-		cph.c = pairing.getG1().newElement();
-		cph.cc = pairing.getG1().newElement();
-		cph.p = parsePolicyPostfix(policy);
-
-		/* compute */
-		m.setToRandom();
-		s.setToRandom();
-
-		cph.cs = pub.g_hat_alpha.duplicate();
-		cph.cs.powZn(s); /* num_exps++; */
-		cph.cs.mul(m); /* num_muls++; */
-
-		cph.c = pub.h.duplicate();
-		cph.c.powZn(s); /* num_exps++; */
-
-		fillPolicy(cph.p, pub, s);
-
-		keyCph.cph = cph;
-		keyCph.rootKey = m;
-
-		return keyCph;
-	}
-
-	public static BswabeCphKey enc2(BswabePub pub, String policy)
-			throws Exception {
-		BswabeCphKey keyCph = new BswabeCphKey();
-		BswabeCph cph = new BswabeCph();
 		Element ss, m, s, mm;
 
 		/* 各变量初始化 */
@@ -378,17 +301,13 @@ public class Bswabe {
 		cph.c = pub.h.duplicate();
 		cph.c.powZn(s); /* num_exps++; */
 
-		ss = fillPolicy2(cph.p, pub, s);
-
-		/* compute rootKey info*/
+		/* compute childKey info */
+		ss = fillPolicy(cph.p, pub, s);
 		cph.ccss = pub.g_hat_alpha.duplicate();
 		cph.ccss.powZn(ss);
 		cph.ccss.mul(mm);
 		cph.cc = pub.h.duplicate();
 		cph.cc.powZn(ss);
-
-		System.out.println("m = " + m);
-		System.out.println("mm = " + mm);
 
 		keyCph.cph = cph;
 		keyCph.rootKey = m;
@@ -396,7 +315,15 @@ public class Bswabe {
 		return keyCph;
 	}
 
-	public static BswabeElementBoolean dec2(BswabePub pub, BswabePrv prv,
+
+	/*
+	 * Decrypt the specified ciphertext using the given private key, filling in
+	 * the provided element m (which need not be initialized) with the result.
+	 *
+	 * Returns true if decryption succeeded, false if this key does not satisfy
+	 * the policy of the ciphertext (in which case m is unaltered).
+	 */
+	public static BswabeElementBoolean dec(BswabePub pub, BswabePrv prv,
 										   BswabeCph cph) {
 		Element t, tt;
 		Element m, mm;
@@ -407,15 +334,15 @@ public class Bswabe {
 		t = pub.p.getGT().newElement();
 		tt = pub.p.getGT().newElement();
 
-		//-----------------------------------
+		/*------验证是否可以满足以根节点左孩子为根的子树代表的访问策略------*/
 		checkSatisfy(cph.p.children[0], prv);
 		if (!cph.p.children[0].satisfiable) {
-			System.err.println("cannot decrypt, first child attributes in key do not satisfy policy");
+			System.err.println("cannot decrypt, attributes in key do not satisfy leftChild policy");
 			beb.eChild = null;
 			beb.bChild = false;
 		} else {
 			pickSatisfyMinLeaves(cph.p.children[0], prv);
-			decFlatten(tt, cph.p.children[0], prv, pub, null);
+			decFlatten(tt, cph.p.children[0], prv, pub);
 
 			mm = cph.ccss.duplicate();
 			mm.mul(tt); /* num_muls++; */
@@ -428,13 +355,10 @@ public class Bswabe {
 			beb.bChild = true;
 		}
 
-		System.out.println("ee = " + mm);
-
-		//-----------------------------------
+		/*------验证是否可以满足以根节点为根的树代表的访问策略------*/
 		checkSatisfy(cph.p, prv);
 		if (!cph.p.satisfiable) {
-			System.err
-					.println("cannot decrypt, root attributes in key do not satisfy policy");
+			System.err.println("cannot decrypt, attributes in key do not satisfy root policy");
 			beb.eRoot = null;
 			beb.bRoot = false;
 			return beb;
@@ -443,7 +367,7 @@ public class Bswabe {
 		cph.p.children[0].mediumRoot = true;
 		pickSatisfyMinLeaves(cph.p, prv);
 
-		decFlatten(t, cph.p, prv, pub, null);
+		decFlatten(t, cph.p, prv, pub);
 
 		m = cph.cs.duplicate();
 		m.mul(t); /* num_muls++; */
@@ -454,56 +378,12 @@ public class Bswabe {
 
 		beb.eRoot = m;
 		beb.bRoot = true;
-		System.out.println("e = " + m);
-
-		return beb;
-	}
-
-	/*
-	 * Decrypt the specified ciphertext using the given private key, filling in
-	 * the provided element m (which need not be initialized) with the result.
-	 * 
-	 * Returns true if decryption succeeded, false if this key does not satisfy
-	 * the policy of the ciphertext (in which case m is unaltered).
-	 */
-	public static BswabeElementBoolean dec(BswabePub pub, BswabePrv prv,
-			BswabeCph cph) {
-		Element t;
-		Element m;
-		BswabeElementBoolean beb = new BswabeElementBoolean();
-
-		m = pub.p.getGT().newElement();
-		t = pub.p.getGT().newElement();
-
-		checkSatisfy(cph.p, prv);
-		if (!cph.p.satisfiable) {
-			System.err
-					.println("cannot decrypt, attributes in key do not satisfy policy");
-			beb.eRoot = null;
-			beb.bRoot = false;
-			return beb;
-		}
-
-		pickSatisfyMinLeaves(cph.p, prv);
-
-		//decFlatten(t, cph.p, prv, pub);
-
-		m = cph.cs.duplicate();
-		m.mul(t); /* num_muls++; */
-
-		t = pub.p.pairing(cph.c, prv.d);
-		t.invert();
-		m.mul(t); /* num_muls++; */
-
-		beb.eRoot = m;
-		beb.bRoot = true;
-		System.out.println("beb.e = " + m);
 
 		return beb;
 	}
 
 	private static void decFlatten(Element r, BswabePolicy p, BswabePrv prv,
-			BswabePub pub, Element rr) {
+								   BswabePub pub) {
 		Element one;
 		one = pub.p.getZr().newElement();
 		one.setToOne();
@@ -549,7 +429,7 @@ public class Bswabe {
 		expnew = pub.p.getZr().newElement();
 
 		for (i = 0; i < p.satl.size(); i++) {
-			lagrangeCoef(t, p.satl, (p.satl.get(i)).intValue());
+			lagrangeCoef(t, p.satl, p.satl.get(i));
 			expnew = exp.duplicate();
 			expnew.mul(t);
 			decNodeFlatten(r, expnew, p.children[p.satl.get(i) - 1], prv, pub);
@@ -565,7 +445,7 @@ public class Bswabe {
 
 		r.setToOne();
 		for (k = 0; k < s.size(); k++) {
-			j = s.get(k).intValue();
+			j = s.get(k);
 			if (j == i)
 				continue;
 			t.set(-j);
@@ -590,21 +470,21 @@ public class Bswabe {
 					pickSatisfyMinLeaves(p.children[i], prv);
 
 			for (i = 0; i < len; i++)
-				c.add(new Integer(i));
+				c.add(i);
 
-			Collections.sort(c, new IntegerComparator(p));
+			c.sort(new IntegerComparator(p));
 
 			p.satl = new ArrayList<Integer>();
 			p.min_leaves = 0;
 			l = 0;
 
 			for (i = 0; i < len && l < p.k; i++) {
-				c_i = c.get(i).intValue(); /* c[i] */
+				c_i = c.get(i); /* c[i] */
 				if (p.children[c_i].satisfiable) {
 					l++;
 					p.min_leaves += p.children[c_i].min_leaves;
 					k = c_i + 1;
-					p.satl.add(new Integer(k));
+					p.satl.add(k);
 				}
 			}
 		}
@@ -641,7 +521,43 @@ public class Bswabe {
 		}
 	}
 
-	private static void fillPolicy(BswabePolicy p, BswabePub pub, Element e)
+	// 构造访问控制树，并返回在构造过程中随机生成的根节点的左孩子的秘密值
+	private static Element fillPolicy(BswabePolicy p, BswabePub pub, Element e)
+			throws NoSuchAlgorithmException {
+		int i;
+		Element r, t, h, ee;
+		Pairing pairing = pub.p;
+		r = pairing.getZr().newElement();
+		t = pairing.getZr().newElement();
+		h = pairing.getG2().newElement();
+		ee = pairing.getZr().newElement();
+
+		p.q = randPoly(p.k - 1, e);
+
+		if (p.children == null || p.children.length == 0) { // 计算叶子节点值
+			p.c = pairing.getG1().newElement();
+			p.cp = pairing.getG2().newElement();
+
+			elementFromString(h, p.attr);
+			p.c = pub.g.duplicate();;
+			p.c.powZn(p.q.coef[0]);
+			p.cp = h.duplicate();
+			p.cp.powZn(p.q.coef[0]);
+		} else { // 计算中间节点值
+			for (i = 0; i < p.children.length; i++) {
+				r.set(i + 1);
+				evalPoly(t, p.q, r);
+				if (i == 0) { // 如果这个中间节点是根节点的左孩子，需要记录他的秘密值（并在最后返回）
+					ee = t.duplicate();
+				}
+				fillPolicy1(p.children[i], pub, t);
+			}
+		}
+		return ee;
+	}
+
+	// 递归构造访问控制树，与上一个fillPolicy不同的是，上一个函数需要返回第一个孩子的秘密值
+	private static void fillPolicy1(BswabePolicy p, BswabePub pub, Element e)
 			throws NoSuchAlgorithmException {
 		int i;
 		Element r, t, h;
@@ -658,37 +574,6 @@ public class Bswabe {
 
 			elementFromString(h, p.attr);
 			p.c = pub.g.duplicate();;
-			p.c.powZn(p.q.coef[0]); 	
-			p.cp = h.duplicate();
-			p.cp.powZn(p.q.coef[0]);
-		} else {
-			for (i = 0; i < p.children.length; i++) {
-				r.set(i + 1);
-				evalPoly(t, p.q, r);
-				fillPolicy(p.children[i], pub, t);
-			}
-		}
-
-	}
-
-	private static Element fillPolicy2(BswabePolicy p, BswabePub pub, Element e)
-			throws NoSuchAlgorithmException {
-		int i;
-		Element r, t, h, ee;
-		Pairing pairing = pub.p;
-		r = pairing.getZr().newElement();
-		t = pairing.getZr().newElement();
-		h = pairing.getG2().newElement();
-		ee = pairing.getZr().newElement();
-
-		p.q = randPoly(p.k - 1, e);
-
-		if (p.children == null || p.children.length == 0) {
-			p.c = pairing.getG1().newElement();
-			p.cp = pairing.getG2().newElement();
-
-			elementFromString(h, p.attr);
-			p.c = pub.g.duplicate();;
 			p.c.powZn(p.q.coef[0]);
 			p.cp = h.duplicate();
 			p.cp.powZn(p.q.coef[0]);
@@ -696,14 +581,10 @@ public class Bswabe {
 			for (i = 0; i < p.children.length; i++) {
 				r.set(i + 1);
 				evalPoly(t, p.q, r);
-				if (i == 0) {
-					ee = t.duplicate();
-				}
-
-				fillPolicy(p.children[i], pub, t);
+				fillPolicy1(p.children[i], pub, t);
 			}
 		}
-		return ee;
+
 	}
 
 	private static void evalPoly(Element r, BswabePolynomial q, Element x) {
@@ -754,10 +635,10 @@ public class Bswabe {
 		toks = s.split(" ");
 
 		int toks_cnt = toks.length;
-		for (int index = 0; index < toks_cnt; index++) {
+		for (String value : toks) {
 			int i, k, n;
 
-			tok = toks[index];
+			tok = value;
 			if (!tok.contains("of")) {
 				stack.add(baseNode(1, tok));
 			} else {
@@ -842,11 +723,10 @@ public class Bswabe {
 		public int compare(Integer o1, Integer o2) {
 			int k, l;
 
-			k = policy.children[o1.intValue()].min_leaves;
-			l = policy.children[o2.intValue()].min_leaves;
+			k = policy.children[o1].min_leaves;
+			l = policy.children[o2].min_leaves;
 
-			return	k < l ? -1 : 
-					k == l ? 0 : 1;
+			return Integer.compare(k, l);
 		}
 	}
 }

@@ -5,7 +5,6 @@ import it.unisa.dia.gas.jpbc.Element;
 import it.unisa.dia.gas.jpbc.Pairing;
 import it.unisa.dia.gas.plaf.jpbc.pairing.DefaultCurveParameters;
 import it.unisa.dia.gas.plaf.jpbc.pairing.PairingFactory;
-import sun.misc.BASE64Encoder;
 
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
@@ -74,12 +73,6 @@ public class SerializeUtils {
 		serializeElement(arrlist, pub.gp);
 		serializeElement(arrlist, pub.g_hat_alpha);
 
-		BASE64Encoder enc=new BASE64Encoder();
-		System.out.printf("g: %s\n", pub.g);
-		System.out.printf("h: %s\n", pub.h);
-		System.out.printf("e(g, g): %s\n", pub.g_hat_alpha);
-		System.out.printf("e: %s\n", pub.pairingDesc);
-
 		return Byte_arr2byte_arr(arrlist);
 	}
 
@@ -119,10 +112,6 @@ public class SerializeUtils {
 		serializeElement(arrlist, msk.beta);
 		serializeElement(arrlist, msk.g_alpha);
 		serializeElement(arrlist, msk.alpha);
-
-		System.out.printf("beta: %s\n", msk.beta);
-		System.out.printf("g_alpha: %s\n", msk.g_alpha);
-		System.out.printf("alpha: %s\n", msk.alpha);
 
 		return Byte_arr2byte_arr(arrlist);
 	}

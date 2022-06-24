@@ -2,13 +2,14 @@ package co.junwei.cpabe;
 import co.junwei.bswabe.*;
 import co.junwei.cpabe.policy.LangPolicy;
 import it.unisa.dia.gas.jpbc.Element;
-import it.unisa.dia.gas.jpbc.Pairing;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 
 public class Cpabe {
+
+	private BswabePrv prv;
 
 	/**
 	 * @param
@@ -30,8 +31,8 @@ public class Cpabe {
 		Common.spitFile(mskfile, msk_byte);
 	}
 
-	public String keygen(String pubfile, String prvfile, String mskfile,
-			String attr_str) throws NoSuchAlgorithmException, IOException {
+	public String keygen(String pubfile, String mskfile, String attr_str)
+			throws NoSuchAlgorithmException, IOException {
 		BswabePub pub;
 		BswabeMsk msk;
 		byte[] pub_byte, msk_byte, prv_byte;
@@ -45,95 +46,16 @@ public class Cpabe {
 		msk = SerializeUtils.unserializeBswabeMsk(pub, msk_byte);
 
 		String[] attr_arr = LangPolicy.parseAttribute(attr_str);
-		Pairing pairing = pub.p;
-		Element x, x_inv;
-		x = pairing.getZr().newElement();
-		x.setToRandom();
-		x_inv = x.duplicate();
-		x_inv.invert();
-		Element g_x = pub.gp.duplicate();
-		g_x = g_x.powZn(x);
 
-		BswabePrv prv = Bswabe.keygen1(pub, msk, attr_arr, g_x);
-		prv.d = Bswabe.keygen2(prv.d, pub, msk).duplicate();
-		prv.d = prv.d.powZn(x_inv);
+		BswabePrv prv = Bswabe.keygen(pub, msk, attr_arr);
 
 		/* return BswabePrv into prvfile */
 		prv_byte = SerializeUtils.serializeBswabePrv(prv);
 		return Base64.getEncoder().encodeToString(prv_byte);
 	}
 
-	public void enc(String pubfile, String policy, String inputfile,
-			String encfile) throws Exception {
-		BswabePub pub;
-		BswabeCph cph;
-		BswabeCphKey keyCph;
-		byte[] plt;
-		byte[] cphBuf;
-		byte[] aesBuf;
-		byte[] pub_byte;
-		Element m;
-
-		/* get BswabePub from pubfile */
-		pub_byte = Common.suckFile(pubfile);
-		pub = SerializeUtils.unserializeBswabePub(pub_byte);
-
-		keyCph = Bswabe.enc2(pub, policy);
-		cph = keyCph.cph;
-		m = keyCph.rootKey;
-		System.err.println("m = " + m.toString());
-
-		if (cph == null) {
-			System.out.println("Error happed in enc");
-			System.exit(0);
-		}
-
-		cphBuf = SerializeUtils.bswabeCphSerialize(cph);
-
-		/* read file to encrypted */
-		plt = Common.suckFile(inputfile);
-		aesBuf = AESCoder.encrypt(m.toBytes(), plt);
-		// PrintArr("element: ", m.toBytes());
-		Common.writeCpabeFile(encfile, cphBuf, aesBuf);
-	}
-
-	public void dec(String pubfile, String prvfile, String encfile,
-			String decfile) throws Exception {
-		byte[] aesBuf, cphBuf;
-		byte[] plt;
-		byte[] prv_byte;
-		byte[] pub_byte;
-		byte[][] tmp;
-		BswabeCph cph;
-		BswabePrv prv;
-		BswabePub pub;
-
-		/* get BswabePub from pubfile */
-		pub_byte = Common.suckFile(pubfile);
-		pub = SerializeUtils.unserializeBswabePub(pub_byte);
-
-		/* read ciphertext */
-		tmp = Common.readCpabeFile(encfile);
-		aesBuf = tmp[0];
-		cphBuf = tmp[1];
-		cph = SerializeUtils.bswabeCphUnserialize(pub, cphBuf);
-
-		/* get BswabePrv form prvfile */
-		prv_byte = Common.suckFile(prvfile);
-		prv = SerializeUtils.unserializeBswabePrv(pub, prv_byte);
-
-		BswabeElementBoolean beb = Bswabe.dec(pub, prv, cph);
-		System.err.println("e = " + beb.eRoot.toString());
-		if (beb.bRoot) {
-			plt = AESCoder.decrypt(beb.eRoot.toBytes(), aesBuf);
-			Common.spitFile(decfile, plt);
-		} else {
-			System.exit(0);
-		}
-	}
-
-	public String enc2(String pubfile, String policy, String highInputfile, String mediumInputfile,
-					String highEncfile, String mediumEncfile) throws Exception {
+	public String enc(String pubfile, String policy, String highInputfile, String mediumInputfile,
+					  String highEncfile, String mediumEncfile) throws Exception {
 		BswabePub pub;
 		BswabeCph cph;
 		BswabeCphKey keyCph;
@@ -147,10 +69,10 @@ public class Cpabe {
 		pub_byte = Common.suckFile(pubfile);
 		pub = SerializeUtils.unserializeBswabePub(pub_byte);
 
-		keyCph = Bswabe.enc2(pub, policy);
+		keyCph = Bswabe.enc(pub, policy); // ABE加密
 		cph = keyCph.cph;
-		rootKey = keyCph.rootKey;    // 根节点的AES加密密钥
-		childKey = keyCph.childKey;  // 根节点左孩子节点的AES加密密钥
+		rootKey = keyCph.rootKey;    // 根节点的AES对称密钥
+		childKey = keyCph.childKey;  // 根节点左孩子节点的AES对称密钥
 
 		if (cph == null) {
 			System.out.println("Error happened in enc");
@@ -187,8 +109,8 @@ public class Cpabe {
 		return keyEnc;
 	}
 
-	public int dec2(String pubfile, String priKey, String highEncfile, String mediumEncfile,
-					String highDecfile, String mediumDecfile, String keyEnc) throws Exception {
+	public void dec(String pubfile, String priKey, String highEncfile, String mediumEncfile,
+				   String highDecfile, String mediumDecfile, String keyEnc) throws Exception {
 		byte[] aesBuf, cphBuf;
 		byte[] plt;
 		byte[] prv_byte;
@@ -209,13 +131,12 @@ public class Cpabe {
 		cph = SerializeUtils.bswabeCphUnserialize(pub, cphBuf);
 
 		/* get BswabePrv form prvfile */
-//		prv_byte = Common.suckFile(prvfile);
 		prv_byte = Base64.getDecoder().decode(priKey);
 		prv = SerializeUtils.unserializeBswabePrv(pub, prv_byte);
 
-		BswabeElementBoolean beb = Bswabe.dec2(pub, prv, cph);
+		BswabeElementBoolean beb = Bswabe.dec(pub, prv, cph);
 
-		if (cph.p.k == 2) {
+		if (cph.p.k == 2) { // policy是以“2of2”结尾的
 			// root是high文件的加密key child是medium文件的加密key
 			if (beb.bChild) {
 				/* read ciphertext */
@@ -224,6 +145,7 @@ public class Cpabe {
 				plt = AESCoder.decrypt(beb.eChild.toBytes(), aesBuf);
 				Common.spitFile(mediumDecfile, plt);
 				res[0] = true;
+				System.out.println("success dec medium file");
 			} else {
 				System.out.println("can't resolve medium file");
 			}
@@ -235,6 +157,7 @@ public class Cpabe {
 				plt = AESCoder.decrypt(beb.eRoot.toBytes(), aesBuf);
 				Common.spitFile(highDecfile, plt);
 				res[1] = true;
+				System.out.println("success dec high file");
 			} else {
 				System.out.println("can't resolve high file");
 			}
@@ -247,6 +170,7 @@ public class Cpabe {
 				plt = AESCoder.decrypt(beb.eChild.toBytes(), aesBuf);
 				Common.spitFile(highDecfile, plt);
 				res[1] = true;
+				System.out.println("success dec medium file");
 			} else {
 				System.out.println("can't resolve medium file");
 			}
@@ -258,15 +182,12 @@ public class Cpabe {
 				plt = AESCoder.decrypt(beb.eRoot.toBytes(), aesBuf);
 				Common.spitFile(mediumDecfile, plt);
 				res[0] = true;
+				System.out.println("success dec high file");
 			} else {
 				System.out.println("can't resolve high file");
 			}
 		}
 
-		int result = 0;
-		if(res[0]) result += 1;
-		if(res[1]) result += 10;
-		return result;
 	}
 
 }
