@@ -9,7 +9,17 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 public class HttpServer {
-    static ClientApp clientApp = null;
+    static FabricService fabricService = null;
+    static EncService encService;
+
+    static {
+        try {
+            encService = new EncService();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         try {
             ServerSocket ss=new ServerSocket(8888);
@@ -21,7 +31,6 @@ public class HttpServer {
                  * 接受HTTP请求
                  */
                 String requestHeader;
-                int contentLength=0;
                 while((requestHeader=bd.readLine())!=null&&!requestHeader.isEmpty()){
                     System.out.println(requestHeader);
                     /**
@@ -41,11 +50,9 @@ public class HttpServer {
                         System.out.println("这是post");
                         int begin=requestHeader.indexOf("Content-Length:")+"Content-Length:".length();
                         String postParamterLength=requestHeader.substring(begin).trim();
-                        contentLength=Integer.parseInt(postParamterLength);
                         System.out.println("POST参数长度是："+Integer.parseInt(postParamterLength));
                     }
                 }
-                StringBuffer sb=new StringBuffer();
                 String result = null;
                 String str = "";
                 if((str = bd.readLine()) != null) {
@@ -80,34 +87,30 @@ public class HttpServer {
 
         switch (method) {
             case "enrollAdmin": {
-                EnrollAdmin.main(null);
+                FabricService.enrollAdmin();
                 return "success";
             }
             case "registerUser": {
-                RegisterUser.main(null);
-                clientApp = new ClientApp("user1");               
+                FabricService.registerUser();
+                fabricService = new FabricService("user1");
                 return "success";
             }
             case "queryAllMedicalData": {
-                return clientApp.queryAllMedicalData();
+                return fabricService.queryAllMedicalData();
             }
             case "createUser": {
                 String createUserName = paramList[1].substring(paramList[1].indexOf("=") + 1).trim();
                 String userType = paramList[2].substring(paramList[2].indexOf("=") + 1).trim();
-                return clientApp.createUser(createUserName, userType);
+                return fabricService.createUser(createUserName, userType);
             }
-                case "encMedicalData": {
-                    try {
-                        String highTextFile = paramList[1].substring(paramList[1].indexOf("=") + 1).trim();
-                        String mediumTextFile = paramList[2].substring(paramList[2].indexOf("=") + 1).trim();
-                        String highEncFile = paramList[3].substring(paramList[3].indexOf("=") + 1).trim();
-                        String mediumEncFile = paramList[4].substring(paramList[4].indexOf("=") + 1).trim();
-                        String policy = paramList[5].substring(paramList[5].indexOf("=") + 1).trim();
-                        return "加密后的对称密钥为："+ clientApp.encMedicalData(highTextFile, mediumTextFile, highEncFile,
+            case "encMedicalData": {
+                String highTextFile = paramList[1].substring(paramList[1].indexOf("=") + 1).trim();
+                String mediumTextFile = paramList[2].substring(paramList[2].indexOf("=") + 1).trim();
+                String highEncFile = paramList[3].substring(paramList[3].indexOf("=") + 1).trim();
+                String mediumEncFile = paramList[4].substring(paramList[4].indexOf("=") + 1).trim();
+                String policy = paramList[5].substring(paramList[5].indexOf("=") + 1).trim();
+                return "加密后的对称密钥为："+ encService.encMedicalData(highTextFile, mediumTextFile, highEncFile,
                                 mediumEncFile, policy);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
                 }
             case "createMedicalData": {
                     String encKey = paramList[1].substring(paramList[1].indexOf("=") + 1).trim();
@@ -120,7 +123,7 @@ public class HttpServer {
                     String attNum = paramList[8].substring(paramList[8].indexOf("=") + 1).trim();
                     String num = paramList[9].substring(paramList[9].indexOf("=") + 1).trim();
                     try {
-                        return "上传成功，数据ID为：" + clientApp.createMedicalData(encKey, highEncFile, mediumEncFile, platformId,
+                        return "上传成功，数据ID为：" + fabricService.createMedicalData(encKey, highEncFile, mediumEncFile, platformId,
                                 individualId, describe, policy, attNum, num);
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -128,49 +131,49 @@ public class HttpServer {
             }
             case "priKeyGen": {
                 String att = paramList[1].substring(paramList[1].indexOf("=") + 1).trim();
-                return "属性关联私钥为：" + ClientApp.priKeyGen(att);
+                return "属性关联私钥为：" + encService.keygen(att);
             }
             case "queryMedicalDataById": {
-                    String dataId = paramList[1].substring(paramList[1].indexOf("=") + 1).trim();
-                    try {
-                        return clientApp.queryMedicalDataById("MEDICAL_DATA"+dataId);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                    break;
+                String dataId = paramList[1].substring(paramList[1].indexOf("=") + 1).trim();
+                try {
+                    return fabricService.queryMedicalDataById("MEDICAL_DATA"+dataId);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                break;
             }
-                case "requestMedicalDataById": {
-                    String dataId = paramList[1].substring(paramList[1].indexOf("=") + 1).trim();
-                    String userId = paramList[2].substring(paramList[2].indexOf("=") + 1).trim();
-                    try {
-                        return clientApp.requestMedicalData(dataId, userId);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+            case "requestMedicalDataById": {
+                String dataId = paramList[1].substring(paramList[1].indexOf("=") + 1).trim();
+                String userId = paramList[2].substring(paramList[2].indexOf("=") + 1).trim();
+                try {
+                    return fabricService.requestMedicalData(dataId, userId);
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
-                case "decMedicalData": {
-                    String highEncFile = paramList[1].substring(paramList[1].indexOf("=") + 1).trim();
-                    String mediumEncFile = paramList[2].substring(paramList[2].indexOf("=") + 1).trim();
-                    String highDecFile = paramList[3].substring(paramList[3].indexOf("=") + 1).trim();
-                    String mediumDecFile = paramList[4].substring(paramList[4].indexOf("=") + 1).trim();
-                    String priKey = paramList[5].substring(paramList[5].indexOf("=") + 1).trim();
-                    String encKey = paramList[6].substring(paramList[6].indexOf("=") + 1).trim();
-                    try {
-                        return clientApp.decMedicalData(highEncFile, mediumEncFile, highDecFile, mediumDecFile,
-                                priKey, encKey);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+            }
+            case "decMedicalData": {
+                String highEncFile = paramList[1].substring(paramList[1].indexOf("=") + 1).trim();
+                String mediumEncFile = paramList[2].substring(paramList[2].indexOf("=") + 1).trim();
+                String highDecFile = paramList[3].substring(paramList[3].indexOf("=") + 1).trim();
+                String mediumDecFile = paramList[4].substring(paramList[4].indexOf("=") + 1).trim();
+                String priKey = paramList[5].substring(paramList[5].indexOf("=") + 1).trim();
+                String encKey = paramList[6].substring(paramList[6].indexOf("=") + 1).trim();
+                try {
+                    return encService.decMedicalData(highEncFile, mediumEncFile, highDecFile, mediumDecFile,
+                            priKey, encKey);
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
+            }
             case "querySharingRecordByUserId": {
                 String userId = paramList[1].substring(paramList[1].indexOf("=") + 1).trim();
                 String isRequester = paramList[2].substring(paramList[2].indexOf("=") + 1).trim();
-                return clientApp.querySharingRecordByUserId(userId, isRequester);
+                return fabricService.querySharingRecordByUserId(userId, isRequester);
             }
             case "queryPointById": {
                 String userId = paramList[1].substring(paramList[1].indexOf("=") + 1).trim();
                 try {
-                    return "用户剩余贡献点为" + clientApp.queryPointById(userId);
+                    return "用户剩余贡献点为" + fabricService.queryPointById(userId);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

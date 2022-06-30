@@ -4,30 +4,20 @@
 
 package org.hyperledger.fabric.samples.medicalData;
 
-import java.text.SimpleDateFormat;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.ArrayList;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import java.io.IOException;
-
 import com.alibaba.fastjson.JSON;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.contract.ContractInterface;
-import org.hyperledger.fabric.contract.annotation.Contact;
-import org.hyperledger.fabric.contract.annotation.Contract;
-import org.hyperledger.fabric.contract.annotation.Default;
-import org.hyperledger.fabric.contract.annotation.Info;
-import org.hyperledger.fabric.contract.annotation.License;
-import org.hyperledger.fabric.contract.annotation.Transaction;
+import org.hyperledger.fabric.contract.annotation.*;
 import org.hyperledger.fabric.shim.ChaincodeException;
 import org.hyperledger.fabric.shim.ChaincodeStub;
 import org.hyperledger.fabric.shim.ledger.KeyValue;
 import org.hyperledger.fabric.shim.ledger.QueryResultsIterator;
-import co.junwei.cpabe.Cpabe;
+
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * Java implementation of the Fabric Car Contract described in the Writing Your
@@ -73,11 +63,6 @@ public final class FabMedicalData implements ContractInterface {
     private static Integer maxSharingRecordId = -1;
     private static Integer maxUserId = 99;
 
-    private static final Cpabe test = new Cpabe();
-    private static final String dir = "enc";
-    private static final String pubfile = dir + "/pub_key";
-    private static final String mskfile = dir + "/master_key";
-
     @Transaction()
     public String queryMedicalDataById(final Context ctx, final String id) {
         ChaincodeStub stub = ctx.getStub();
@@ -121,10 +106,8 @@ public final class FabMedicalData implements ContractInterface {
             medicalDatas.add(medicalData);
         }
 
-        String[] response = medicalDatas.stream().map(MedicalData::toString).collect(Collectors.toList()).
+        return medicalDatas.stream().map(MedicalData::toString).collect(Collectors.toList()).
                 toArray(new String[medicalDatas.size()]);
-
-        return response;
     }
 
     @Transaction()
@@ -306,8 +289,7 @@ public final class FabMedicalData implements ContractInterface {
             medicalDatas.add(medicalData);
         }
 
-        String response = JSON.toJSONString(medicalDatas);
-        return response;
+        return JSON.toJSONString(medicalDatas);
     }
 
     @Transaction()
@@ -344,18 +326,6 @@ public final class FabMedicalData implements ContractInterface {
         String response = JSON.toJSONString(sharingRecords);
         return sharingRecords;
     }
-    @Transaction
-    public static String keygen(final Context ctx,
-                                final String attr_str, final String userId) throws Exception {
-        ChaincodeStub stub = ctx.getStub();
-        // 获取user
-        String userString = stub.getStringState(String.format("%s%03d", StateType.USER, Integer.valueOf(userId)));
-        User user = JSON.parseObject(userString, User.class);
-        user.setAtt(attr_str);
-        stub.putStringState(String.format("%s%03d", StateType.USER, Integer.valueOf(user.getId())),
-                JSON.toJSONString(user));
-        return test.keygen(pubfile, null, mskfile, attr_str);
 
-    }
 }
 

@@ -109,7 +109,7 @@ public class Cpabe {
 		return keyEnc;
 	}
 
-	public void dec(String pubfile, String priKey, String highEncfile, String mediumEncfile,
+	public String dec(String pubfile, String priKey, String highEncfile, String mediumEncfile,
 				   String highDecfile, String mediumDecfile, String keyEnc) throws Exception {
 		byte[] aesBuf, cphBuf;
 		byte[] plt;
@@ -119,7 +119,7 @@ public class Cpabe {
 		BswabeCph cph;
 		BswabePrv prv;
 		BswabePub pub;
-		boolean[] res = new boolean[2];
+		String res = "";
 
 		/* get BswabePub from pubfile */
 		pub_byte = Common.suckFile(pubfile);
@@ -144,7 +144,7 @@ public class Cpabe {
 				aesBuf = tmp[0];
 				plt = AESCoder.decrypt(beb.eChild.toBytes(), aesBuf);
 				Common.spitFile(mediumDecfile, plt);
-				res[0] = true;
+				res += "中级文件解密成功，";
 				System.out.println("success dec medium file");
 			} else {
 				System.out.println("can't resolve medium file");
@@ -156,7 +156,7 @@ public class Cpabe {
 				aesBuf = tmp[0];
 				plt = AESCoder.decrypt(beb.eRoot.toBytes(), aesBuf);
 				Common.spitFile(highDecfile, plt);
-				res[1] = true;
+				res += "高级文件解密成功";
 				System.out.println("success dec high file");
 			} else {
 				System.out.println("can't resolve high file");
@@ -169,10 +169,10 @@ public class Cpabe {
 				aesBuf = tmp[0];
 				plt = AESCoder.decrypt(beb.eChild.toBytes(), aesBuf);
 				Common.spitFile(highDecfile, plt);
-				res[1] = true;
-				System.out.println("success dec medium file");
+				res += "高级文件解密成功，";
+				System.out.println("success dec high file");
 			} else {
-				System.out.println("can't resolve medium file");
+				System.out.println("can't resolve high file");
 			}
 
 			if (beb.bRoot) {
@@ -181,12 +181,13 @@ public class Cpabe {
 				aesBuf = tmp[0];
 				plt = AESCoder.decrypt(beb.eRoot.toBytes(), aesBuf);
 				Common.spitFile(mediumDecfile, plt);
-				res[0] = true;
-				System.out.println("success dec high file");
+				res += "中级文件解密成功";
+				System.out.println("success dec medium file");
 			} else {
-				System.out.println("can't resolve high file");
+				System.out.println("can't resolve medium file");
 			}
 		}
+		return res;
 
 	}
 

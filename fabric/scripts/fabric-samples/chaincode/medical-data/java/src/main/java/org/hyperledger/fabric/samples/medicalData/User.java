@@ -64,16 +64,7 @@ public final class User {
     public UserType getUserType() {
         return userType;
     }
-    @Property()
-    private String att;
 
-    public String getAtt() {
-        return att;
-    }
-
-    public void setAtt(final String attribute) {
-        this.att = attribute;
-    }
 
     public User(@JsonProperty("id") final String id, @JsonProperty("name") final String name,
                 @JsonProperty("point") final Integer point, @JsonProperty("userType") final UserType userType) {
@@ -82,7 +73,6 @@ public final class User {
         this.name = name;
         this.type = StateType.USER;
         this.userType = userType;
-        this.att = null;
     }
 
     @Override
