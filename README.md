@@ -33,9 +33,12 @@ docker network prune
 ```bash
 ./startFabric.sh java
 ```
-这个脚本主要包括创建peer、orderer、ca等各个容器+启动first-network网络+创建通道，把节点加入通道+在节点上安装链码+链码初始化
+这个脚本主要包括：
+  1. 使用first-network网络的bysh.sh脚本：创建peer、orderer、ca等各个容器+启动first-network网络+创建通道+把节点加入通道
+  2. 在节点上安装链码+链码初始化
 参数java表示我们使用的链码使用java语言写的，这个参数决定了链码的存放目录，这个链码只有java版本的
 更具体的内容可以直接看脚本内容
+
 
 5. 启动区块链网络的时候，可以通过下面这个命令查看所有容器的日志，最好是另外打开一个窗口看日志
 
@@ -76,7 +79,9 @@ mvn test
 
 <img src="https://img-blog.csdnimg.cn/fa2180a4d9b64050b525e36e74bf36aa.png" width="80%">
 
-# 二、代码介绍
+# 二、功能介绍
+分为两部分功能，主要是通过fabric实现的区块链
+# 三、代码介绍
 代码是关于基于fabric区块链的医疗数据共享系统，系统中主要有两个模块，加密魔模块和区块链模块：
 
 
