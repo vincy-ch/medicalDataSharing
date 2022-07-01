@@ -5,7 +5,7 @@
 以阿里云环境，介绍代码具体使用：
 
 0. 首先要把fabric1.4环境装好，具体可以见[这个博客](https://blog.csdn.net/weixin_42787605/article/details/121772885)
-1. 进入阿里云后，下载本代码到某文件夹下
+1. 进入阿里云后，下载本代码到某文件夹下 我是放在了 ~/go/src下面
 2. 每次重新启动阿里云服务器都需要注释下面这句话，否则网络会启动失败
 
 ```bash
@@ -13,9 +13,10 @@ vi /etc/resolv.conf
 # 注释掉下面这句话
 options timeout:2 attempts:3 rotate single-request-reopen
 ```
-3. 清理环境，为防止之前启动的容器和网络影响这次运行，首先要删除之前的容器和网络，进入目录medical-data后：
-
+3. 清理环境，为防止之前启动的容器和网络影响这次运行，首先要删除之前的容器和网络(**要记得每次重新启动网络时都需要进行这一步**)
 ```bash
+# 进入目录medical-data
+cd medicalDataSharing/fabric/scripts/fabric-samples/medical-data
 # 查看容器
 docker ps
 # 清理容器 
@@ -23,7 +24,8 @@ docker rm -f $(docker ps -aq) # 或者直接调用  ./stopFabric.sh
 # 查看网络
 docker network ls
 # 清理网络
-docker prune
+docker network prune
+# 然后输入y
 ```
 
 4. 进入目录medical-data，执行启动脚本
@@ -31,11 +33,16 @@ docker prune
 ```bash
 ./startFabric.sh java
 ```
+这个脚本主要包括创建peer、orderer、ca等各个容器+启动区块链网络+创建通道，把节点加入通道+在节点上安装链码+链码初始化
+参数java表示我们使用的链码使用java语言写的，这个参数决定了链码的存放目录，这个链码只有java版本的
+更具体的内容可以直接看脚本内容
+
 5. 启动区块链网络的时候，可以通过下面这个命令查看所有容器的日志，最好是另外打开一个窗口看日志
 
 进入目录commercial-paper/organization/magnetocorp/configuration/cli，输入下面的命令，可以同时汇总并监视各个容器的日志
 
 ```bash
+cd go/src/medicalDataSharing/fabric/scripts/fabric-samples/commercial-paper/organization/magnetocorp/configuration/cli/
 ./monitordocker.sh net_byfn
 ```
 6. 当出现下面这段话后，说明区块链网络启动成功，而且链码安装并初始化成功
